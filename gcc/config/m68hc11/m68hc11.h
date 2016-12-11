@@ -1,22 +1,23 @@
 /* Definitions of target machine for GNU compiler.
    Motorola 68HC11 and 68HC12.
-   Copyright (C) 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004,
+   2005, 2006 Free Software Foundation, Inc.
    Contributed by Stephane Carrez (stcarrez@nerim.fr)
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.
 
@@ -41,24 +42,28 @@ Note:
 
 #undef ENDFILE_SPEC
 
-/* Compile and assemble for a 68hc11 unless there is a -m68hc12 option.  */
+/* Default to compile and assemble for a 68hc11 */
+/* convert parameter style from 'cc1' to 'as' */
 #ifndef ASM_SPEC
 #define ASM_SPEC                                                \
 "%{m68hc12:-m68hc12}"                                           \
 "%{m68hcs12:-m68hcs12}"                                         \
-"%{!m68hc12:%{!m68hcs12:-m68hc11}} "                            \
+"%{m9s12x:-mm9s12x}"                                             \
+"%{!m68hc12:%{!m68hcs12:%{!m9s12x:-m68hc11}}} "                 \
 "%{mshort:-mshort}%{!mshort:-mlong} "                           \
 "%{fshort-double:-mshort-double}%{!fshort-double:-mlong-double}"
 #endif
 
 /* We need to tell the linker the target elf format.  Just pass an
-   emulation option.  This can be overriden by -Wl option of gcc.  */
+   emulation option.  This can be overridden by -Wl option of gcc.  */
 #ifndef LINK_SPEC
 #define LINK_SPEC                                               \
 "%{m68hc12:-m m68hc12elf}"                                      \
 "%{m68hcs12:-m m68hc12elf}"                                     \
-"%{!m68hc12:%{!m68hcs12:-m m68hc11elf}} "                       \
-"%{!mnorelax:%{!m68hc12:%{!m68hcs12:-relax}}}"
+"%{m9s12x:-m m9s12x}"                                           \
+"%{!m68hc12:%{!m68hcs12:%{!m9s12x:-m m68hc11elf}}} "            \
+"%{!mnorelax:%{!m68hc12:%{!m68hcs12:%{!m9s12x:-relax}}}}"
+
 #endif
 
 #ifndef LIB_SPEC
@@ -75,7 +80,8 @@ Note:
  %{!mshort:-D__INT__=32}\
  %{m68hc12:-Dmc6812 -DMC6812 -Dmc68hc12}\
  %{m68hcs12:-Dmc6812 -DMC6812 -Dmc68hcs12}\
- %{!m68hc12:%{!m68hcs12:-Dmc6811 -DMC6811 -Dmc68hc11}}\
+ %{m9s12x:-Dmc6812 -DMC6812 -Dmc68hc12 -Dmc68hcs12 -Dm9s12x -m9s12x}\
+ %{!m68hc12:%{!m68hcs12:%{!m9s12x:-Dmc6811 -DMC6811 -Dmc68hc11}}}\
  %{fshort-double:-D__HAVE_SHORT_DOUBLE__}\
  %{mlong-calls:-D__USE_RTC__}"
 #endif
@@ -84,7 +90,9 @@ Note:
 #define STARTFILE_SPEC "crt1%O%s"
 
 /* Names to predefine in the preprocessor for this target machine.  */
-#define CPP_PREDEFINES		"-Dmc68hc1x"
+#ifndef CPP_PREDEFINES
+#define CPP_PREDEFINES		"-Dmc68hc1x -Dtarget11"
+#endif
 
 /* As an embedded target, we have no libc.  */
 #define inhibit_libc
@@ -125,20 +133,22 @@ extern short *reg_renumber;	/* def in local_alloc.c */
  * with -mauto-incdec.
  */
 
-#define MASK_SHORT              0002	/* Compile with 16-bit `int' */
-#define MASK_AUTO_INC_DEC       0004
-#define MASK_M6811              0010
-#define MASK_M6812              0020
-#define MASK_M68S12             0040
-#define MASK_NO_DIRECT_MODE     0100
-#define MASK_MIN_MAX            0200
-#define MASK_LONG_CALLS         0400
+#define MASK_SHORT              0x0002	/* Compile with 16-bit `int' */
+#define MASK_AUTO_INC_DEC       0x0004    /* FIXME - tidy M68XX flags order */
+#define MASK_M6811              0x0010
+#define MASK_M6812              0x0020
+#define MASK_M68S12             0x0040
+#define MASK_NO_DIRECT_MODE     0x0100
+#define MASK_MIN_MAX            0x0200
+#define MASK_LONG_CALLS         0x0400
+#define MASK_M68S12X            0x0800
 
 #define TARGET_OP_TIME		(optimize && optimize_size == 0)
 #define TARGET_SHORT            (target_flags & MASK_SHORT)
 #define TARGET_M6811            (target_flags & MASK_M6811)
 #define TARGET_M6812            (target_flags & MASK_M6812)
 #define TARGET_M68S12           (target_flags & MASK_M68S12)
+#define TARGET_M68S12X          (!(target_flags & MASK_M6811) && (target_flags & MASK_M68S12X)) 
 #define TARGET_AUTO_INC_DEC     (target_flags & MASK_AUTO_INC_DEC)
 #define TARGET_MIN_MAX          (target_flags & MASK_MIN_MAX)
 #define TARGET_NO_DIRECT_MODE   (target_flags & MASK_NO_DIRECT_MODE)
@@ -161,6 +171,7 @@ extern short *reg_renumber;	/* def in local_alloc.c */
 #  define MULTILIB_DEFAULTS { "m68hc12" }
 # endif
 #endif
+/* 9s12x in own .h */
 
 /* Macro to define tables used to set the flags. This is a list in braces of
    pairs in braces, each pair being { "NAME", VALUE } where VALUE is the bits
@@ -200,6 +211,10 @@ extern short *reg_renumber;	/* def in local_alloc.c */
     N_("Compile for a 68HC12")},				\
   { "68S12",  MASK_M6812 | MASK_M68S12,				\
     N_("Compile for a 68HCS12")},				\
+  { "9s12x",  MASK_M6812 | MASK_M68S12 | MASK_M68S12X,		\
+    N_("Compile for CPU12X")},				\
+  { "m9s12x",  MASK_M6812 | MASK_M68S12 | MASK_M68S12X,		\
+    N_("Compile for CPU12X")},				\
   { "", TARGET_DEFAULT, 0 }}
 
 /* This macro is similar to `TARGET_SWITCHES' but defines names of
@@ -232,7 +247,7 @@ extern const char *m68hc11_soft_reg_count;
 #endif
 
 /* Print subsidiary information on the compiler version in use.  */
-#define TARGET_VERSION	fprintf (stderr, " (MC68HC11/MC68HC12/MC68HCS12)")
+#define TARGET_VERSION	fprintf (stderr, " (MC68HC11/MC68HC12/MC68HCS12/M9S12X)")
 
 /* Sometimes certain combinations of command options do not make
    sense on a particular target machine.  You can define a macro
@@ -276,6 +291,10 @@ extern const struct processor_costs *m68hc11_cost;
 
 /* Define this if most significant word of a multiword number is numbered.  */
 #define WORDS_BIG_ENDIAN 	1
+
+/* Use a MAX_BITS_PER_WORD equivalent to SImode so that
+   several SI patterns can be used (mostly shift & add).  */
+/* #define MAX_BITS_PER_WORD       32  */
 
 /* Width of a word, in units (bytes).  */
 #define UNITS_PER_WORD		2
@@ -804,8 +823,8 @@ extern enum reg_class m68hc11_tmp_regs_class;
 /* A C expression that is nonzero if hard register number REGNO2 can be
    considered for use as a rename register for REGNO1 */
 
-#define HARD_REGNO_RENAME_OK(REGNO1,REGNO2) \
-  m68hc11_hard_regno_rename_ok ((REGNO1), (REGNO2))
+#define HARD_REGNO_RENAME_OK(REGNO1,REGNO2,MODE)            \
+  m68hc11_hard_regno_rename_ok ((REGNO1), (REGNO2), (MODE))
 
 /* A C expression whose value is nonzero if pseudos that have been
    assigned to registers of class CLASS would likely be spilled
@@ -874,7 +893,9 @@ extern enum reg_class m68hc11_tmp_regs_class;
 		 && VALUE == CONST0_RTX (GET_MODE (VALUE))) : 0) 
 
 /* 'U' represents certain kind of memory indexed operand for 68HC12.
-   and any memory operand for 68HC11.  */
+   and any memory operand for 68HC11.
+   'R' represents indexed addressing mode or access to page0 for 68HC11.
+   For 68HC12, it represents any memory operand.  */
 #define EXTRA_CONSTRAINT(OP, C)                         \
 ((C) == 'U' ? m68hc11_small_indexed_indirect_p (OP, GET_MODE (OP)) \
  : (C) == 'Q' ? m68hc11_symbolic_p (OP, GET_MODE (OP)) \
@@ -963,7 +984,7 @@ extern enum reg_class m68hc11_tmp_regs_class;
    followed by "to".  Eliminations of the same "from" register are listed
    in order of preference.
 
-   We have two registers that are eliminated on the 6811. The psuedo arg
+   We have two registers that are eliminated on the 6811. The pseudo arg
    pointer and pseudo frame pointer registers can always be eliminated;
    they are replaced with either the stack or the real frame pointer.  */
 
@@ -1215,7 +1236,7 @@ extern enum reg_class m68hc11_index_reg_class;
 
 
 /* Internal macro, return 1 if REGNO is a valid base register.  */
-#define REG_VALID_P(REGNO) (1)	/* ? */
+#define REG_VALID_P(REGNO) ((REGNO) >= 0)
 
 extern unsigned char m68hc11_reg_valid_for_base[FIRST_PSEUDO_REGISTER];
 #define REG_VALID_FOR_BASE_P(REGNO) \
@@ -1489,7 +1510,7 @@ extern unsigned char m68hc11_reg_valid_for_index[FIRST_PSEUDO_REGISTER];
    macro is used in only one place: `find_reloads_address' in reload.c.
 
    For M68HC11, we handle large displacements of a base register
-   by splitting the addend accors an addhi3 insn.
+   by splitting the addend across an addhi3 insn.
 
    For M68HC12, the 64K offset range is available.
    */
@@ -1690,7 +1711,7 @@ do {                                                                    \
 
 /* Assembler Commands for Exception Regions.  */
 
-/* Default values provided by GCC should be ok. Assumming that DWARF-2
+/* Default values provided by GCC should be ok. Assuming that DWARF-2
    frame unwind info is ok for this platform.  */
 
 #undef PREFERRED_DEBUGGING_TYPE
@@ -1719,6 +1740,12 @@ do {                                                                    \
 #define IMMEDIATE_PREFIX "#"
 #define GLOBAL_ASM_OP   "\t.globl\t"
 
+/* This is how to output a reference to a user-level label named NAME.
+   `assemble_name' uses this.  */
+#undef  ASM_OUTPUT_LABELREF
+#define ASM_OUTPUT_LABELREF(FILE, NAME) \
+  asm_fprintf (FILE, "%U%s", (*targetm.strip_name_encoding) (NAME))
+
 
 /* Miscellaneous Parameters.  */
 
@@ -1737,8 +1764,10 @@ do {                                                                    \
 {"m68hc11_shift_operator",   {ASHIFT, ASHIFTRT, LSHIFTRT, ROTATE, ROTATERT}},\
 {"m68hc11_eq_compare_operator", {EQ, NE}},                              \
 {"non_push_operand",         {SUBREG, REG, MEM}},			\
+{"splitable_operand",        {SUBREG, REG, MEM}},			\
 {"reg_or_some_mem_operand",  {SUBREG, REG, MEM}},			\
 {"tst_operand",              {SUBREG, REG, MEM}},			\
+{"nonimmediate_noinc_operand", {SUBREG, REG, MEM}},			\
 {"cmp_operand",              {SUBREG, REG, MEM, SYMBOL_REF, LABEL_REF,	\
 			     CONST_INT, CONST_DOUBLE}},
 
